@@ -1,89 +1,149 @@
 package com.nicos.androidwidgetwithcompose
 
-import android.Manifest
+import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageManager
-import android.os.Build
+import android.content.SharedPreferences
+import android.net.Uri
 import android.os.Bundle
-import android.widget.Toast
+import android.util.Base64
+import android.util.Log
 import androidx.activity.ComponentActivity
-import androidx.activity.compose.ManagedActivityResultLauncher
-import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.layout.Box
+import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.Button
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.style.TextAlign
-import androidx.core.app.ActivityCompat
+import androidx.compose.ui.tooling.preview.Preview
 import com.nicos.androidwidgetwithcompose.ui.theme.AndroidWidgetWithComposeTheme
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import okhttp3.FormBody
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import org.json.JSONObject
 
 class MainActivity : ComponentActivity() {
+    private val clientId = "23Q7X9"
+    private val clientSecret = "9a46c93624f851c406adf870f717485d"
+    private val redirectUri = "com.nicos.androidwidgetwithcompose://callback"
+    private val authUrl = "https://www.fitbit.com/oauth2/authorize?response_type=code&client_id=$clientId&redirect_uri=$redirectUri&scope=activity&expires_in=604800"
+    private val tokenUrl = "https://api.fitbit.com/oauth2/token"
+    private val apiUrl = "https://api.fitbit.com/1/user/-/activities/active-zone-minutes/date/today/7d.json"
+
+    private var accessToken by mutableStateOf<String?>(null)
+    private var dataFetchStatus by mutableStateOf("Waiting for data...")
+    private var fitbitJsonData by mutableStateOf<String?>(null)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
         setContent {
             AndroidWidgetWithComposeTheme {
-                Surface(
+                Column(
                     modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background
+                    verticalArrangement = Arrangement.Center,
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    val context = LocalContext.current
-                    val permissionBackgroundLocationLauncher = rememberLauncherForActivityResult(
-                        ActivityResultContracts.RequestPermission()
-                    ) { isGrande -> }
-                    val permissionLauncher = rememberLauncherForActivityResult(
-                        ActivityResultContracts.RequestMultiplePermissions()
-                    ) { permissionList ->
-                        permissionList.forEach { (permission, isGrande) ->
-                            if (ActivityCompat.checkSelfPermission(
-                                    context, Manifest.permission.ACCESS_COARSE_LOCATION
-                                ) == PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(
-                                    context, Manifest.permission.ACCESS_FINE_LOCATION
-                                ) == PackageManager.PERMISSION_GRANTED
-                            ) {
-                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                                    permissionBackgroundLocationLauncher.launch(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
-                                }
-                            }
-                        }
-                    }
-                    Box(contentAlignment = Alignment.Center) {
-                        Button(
-                            onClick = {
-                                requestForPermissionAndStartTheService(permissionLauncher)
-                            }) {
-                            Text(
-                                text = getString(R.string.click_here_to_request_for_location_permissions),
-                                textAlign = TextAlign.Center,
-                            )
-                        }
-                    }
+                    Greeting(dataFetchStatus)
                 }
+                fitbitJsonData?.let { SaveJsonToPreferences(it) }
             }
         }
+
+        when {
+            intent?.data?.host == "callback" -> handleIntent(intent)
+            accessToken == null -> launchFitbitAuth()
+            else -> fetchFitbitData()
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        handleIntent(intent)
+    }
+
+    private fun launchFitbitAuth() = startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(authUrl)))
+
+    private fun handleIntent(intent: Intent) {
+        val code = intent.data?.getQueryParameter("code") ?: return
+        Log.e("FitbitOAuth", "Auth code missing")
+        exchangeCodeForToken(code)
+    }
+
+    private fun exchangeCodeForToken(authCode: String) = CoroutineScope(Dispatchers.IO).launch {
+        try {
+            val client = OkHttpClient()
+            val encodedCredentials = Base64.encodeToString("$clientId:$clientSecret".toByteArray(), Base64.NO_WRAP)
+
+            val requestBody = FormBody.Builder()
+                .add("client_id", clientId)
+                .add("grant_type", "authorization_code")
+                .add("redirect_uri", redirectUri)
+                .add("code", authCode)
+                .build()
+
+            val request = Request.Builder()
+                .url(tokenUrl)
+                .post(requestBody)
+                .addHeader("Authorization", "Basic $encodedCredentials")
+                .addHeader("Content-Type", "application/x-www-form-urlencoded")
+                .build()
+
+            val responseBody = client.newCall(request).execute().body?.string()
+
+            val token = JSONObject(responseBody ?: "").optString("access_token")
+            if (token.isNullOrEmpty()) throw Exception("Token missing")
+
+            accessToken = token
+            fetchFitbitData()
+
+            getSharedPreferences("FitbitData", Context.MODE_PRIVATE).edit().putString("last7dData", responseBody).apply()
+        } catch (e: Exception) {
+            Log.e("FitbitOAuth", "Error: ${e.message}")
+            runOnUiThread { dataFetchStatus = "Error: ${e.message}" }
+        }
+    }
+
+    private fun fetchFitbitData() = CoroutineScope(Dispatchers.IO).launch {
+        try {
+            val request = Request.Builder()
+                .url(apiUrl)
+                .addHeader("Authorization", "Bearer $accessToken")
+                .build()
+
+            val responseBody = OkHttpClient().newCall(request).execute().body?.string()
+
+            if (responseBody != null) {
+                fitbitJsonData = responseBody
+                runOnUiThread { dataFetchStatus = "Success" }
+            } else {
+                runOnUiThread { dataFetchStatus = "Error fetching data" }
+            }
+        } catch (e: Exception) {
+            Log.e("FitbitAPI", "Error: ${e.message}")
+            runOnUiThread { dataFetchStatus = "Error: ${e.message}" }
+        }
+    }
+
+    @Composable
+    private fun SaveJsonToPreferences(json: String) {
+        val context = this@MainActivity
+        val sharedPreferences: SharedPreferences = context.getSharedPreferences("7dAzmFitbit", Context.MODE_PRIVATE)
+        sharedPreferences.edit().putString("json_response", json).apply()
     }
 }
 
-private fun requestForPermissionAndStartTheService(permissionLauncher: ManagedActivityResultLauncher<Array<String>, Map<String, @JvmSuppressWildcards Boolean>>) {
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-        permissionLauncher.launch(
-            arrayOf(
-                Manifest.permission.ACCESS_COARSE_LOCATION,
-                Manifest.permission.ACCESS_FINE_LOCATION,
-            )
-        )
-    } else {
-        permissionLauncher.launch(
-            arrayOf(
-                Manifest.permission.ACCESS_COARSE_LOCATION,
-                Manifest.permission.ACCESS_FINE_LOCATION,
-            )
-        )
-    }
-}
+@Composable
+fun Greeting(text: String) = Text(text = text)
+
+@Preview(showBackground = true)
+@Composable
+fun GreetingPreview() = AndroidWidgetWithComposeTheme { Greeting("Waiting for data...") }

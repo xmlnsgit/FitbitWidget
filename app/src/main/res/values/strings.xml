@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">AndroidWidgetWithCompose</string>
+    <string name="app_name">AZMwidget</string>
     <string name="and">and</string>
     <string name="click_here_to_request_for_location_permissions">Click here to request for location permissions</string>
     <string name="find_the_coordination">Find the coordination</string>

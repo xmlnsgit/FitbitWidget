@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -5,22 +7,37 @@ plugins {
 }
 
 android {
-    namespace = "com.nicos.androidwidgetwithcompose"
+    namespace = "com.visuale.azmwidget"
     buildToolsVersion = "35.0.0"
     compileSdk = 35
 
+
+
     defaultConfig {
-        applicationId = "com.nicos.androidwidgetwithcompose"
+        applicationId = "com.visuale.azmwidget"
         minSdk = 28
         targetSdk = 35
         versionCode = 1
         versionName = "1.0"
-
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
             useSupportLibrary = true
         }
+
+        val secretsProperties = Properties().apply {
+            val file = rootProject.file("secrets.properties")
+            if (file.exists()) {
+                load(file.inputStream())
+            }
+        }
+
+        // Define BuildConfig fields
+        buildConfigField("String", "CLIENT_ID", "\"${secretsProperties.getProperty("FITBIT_CLIENT_ID", "")}\"")
+        buildConfigField("String", "CLIENT_SECRET", "\"${secretsProperties.getProperty("FITBIT_CLIENT_SECRET", "")}\"")
+        buildConfigField("String", "REDIRECT_URI", "\"${secretsProperties.getProperty("FITBIT_REDIRECT_URI", "")}\"")
     }
+
+
 
     buildTypes {
         release {
@@ -50,6 +67,7 @@ android {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
     }
+
 }
 
 val composeGlanceWidgetVersion by extra("1.1.1")

@@ -1,4 +1,4 @@
-package com.nicos.androidwidgetwithcompose.ui.theme
+package com.visuale.azmwidget.ui.theme
 
 import androidx.compose.ui.graphics.Color
 

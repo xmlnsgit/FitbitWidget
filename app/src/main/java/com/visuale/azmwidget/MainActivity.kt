@@ -1,4 +1,4 @@
-package com.nicos.androidwidgetwithcompose
+package com.visuale.azmwidget
 
 import android.content.Context
 import android.content.Intent
@@ -21,7 +21,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
-import com.nicos.androidwidgetwithcompose.ui.theme.AndroidWidgetWithComposeTheme
+import com.visuale.azmwidget.ui.theme.AndroidWidgetWithComposeTheme
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -31,9 +31,10 @@ import okhttp3.Request
 import org.json.JSONObject
 
 class MainActivity : ComponentActivity() {
-    private val clientId = "23Q7X9"
-    private val clientSecret = "9a46c93624f851c406adf870f717485d"
-    private val redirectUri = "com.nicos.androidwidgetwithcompose://callback"
+    private val clientId = BuildConfig.CLIENT_ID
+    private val clientSecret = BuildConfig.CLIENT_SECRET
+    private val redirectUri = BuildConfig.REDIRECT_URI
+
     private val authUrl = "https://www.fitbit.com/oauth2/authorize?response_type=code&client_id=$clientId&redirect_uri=$redirectUri&scope=activity&expires_in=604800"
     private val tokenUrl = "https://api.fitbit.com/oauth2/token"
     private val apiUrl = "https://api.fitbit.com/1/user/-/activities/active-zone-minutes/date/today/7d.json"

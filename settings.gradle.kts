@@ -13,5 +13,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "AndroidWidgetWithCompose"
+rootProject.name = "AndroidWidget"
 include(":app")

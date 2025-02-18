@@ -1,4 +1,4 @@
-package com.nicos.androidwidgetwithcompose
+package com.visuale.azmwidget
 
 import android.content.Context
 import android.content.SharedPreferences

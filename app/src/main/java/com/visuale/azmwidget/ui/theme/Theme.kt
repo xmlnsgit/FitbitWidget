@@ -1,4 +1,4 @@
-package com.nicos.androidwidgetwithcompose.ui.theme
+package com.visuale.azmwidget.ui.theme
 
 import android.app.Activity
 import android.os.Build

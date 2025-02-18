@@ -1,4 +1,4 @@
-package com.nicos.androidwidgetwithcompose.glance_widget.widget
+package com.visuale.azmwidget.glance_widget.widget
 
 import android.Manifest
 import android.annotation.SuppressLint
@@ -15,7 +15,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.core.app.ActivityCompat
 import androidx.glance.Button
@@ -32,8 +31,8 @@ import androidx.glance.layout.padding
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
 import androidx.glance.unit.ColorProvider
-import com.nicos.androidwidgetwithcompose.BuildConfig
-import com.nicos.androidwidgetwithcompose.R
+import com.visuale.azmwidget.BuildConfig
+import com.visuale.azmwidget.R
 
 class MyAppWidget : GlanceAppWidget() {
 

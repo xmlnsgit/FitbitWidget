@@ -1,4 +1,4 @@
-package com.nicos.androidwidgetwithcompose.glance_widget.widget
+package com.visuale.azmwidget.glance_widget.widget
 
 import android.content.Context
 import android.content.Intent
@@ -20,8 +20,6 @@ import androidx.glance.text.TextStyle
 import org.json.JSONObject
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
-
-
 
 // Data model
 data class ActiveZoneMinutes(
@@ -73,7 +71,6 @@ class FitbitWidget : GlanceAppWidget() {
                 maxTotalMinutes < 300 -> 3
                 else -> 1
             }
-
 
             val openFitbitIntent = Intent(Intent.ACTION_VIEW).apply {
                 data = Uri.parse("https://www.fitbit.com/in-app/today")

@@ -1,16 +1,12 @@
 # Android Widget With Compose
 
-This project sets up the Widget in Android using Jetpack Compose Glance.
+This project sets up a widget in Android using Jetpack Compose Glance.
 
-# TODO
+# Set up secrets.properties with Fitbit API credentials
 
-## Refactor the name of the project to AZMwidget
-com.visuale.azmwidget
-
-## Refactor the package to com.visuale.azmwidget
-
-## Remove the old code from Android Widget With Compose
-
+FITBIT_CLIENT_ID=XXXXXX
+FITBIT_CLIENT_SECRET=
+FITBIT_REDIRECT_URI=com.visuale.azmwidget://callback
 
 # Versioning
 

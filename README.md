@@ -1,8 +1,10 @@
-# Android Widget With Compose
+# Android Widget for Fitbit AZM
 
-This project sets up a widget in Android using Jetpack Compose Glance.
+This project sets up a widget in Android using Jetpack Compose Glance. It connects to fitbit API to refresh the fitbit active zone minutes for the last 7 days.
 
-# Set up secrets.properties with Fitbit API credentials
+# Set up 
+
+## Create a secret.properties file in the root of your project.
 
 FITBIT_CLIENT_ID=XXXXXX
 FITBIT_CLIENT_SECRET=

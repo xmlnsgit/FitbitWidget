@@ -1,6 +1,6 @@
 # Android Widget for Fitbit AZM
 
-This project sets up a widget in Android using Jetpack Compose Glance. It connects to fitbit API to refresh the fitbit active zone minutes for the last 7 days.
+This project sets up a widget in Android using Jetpack Compose Glance. It connects to Fitbit to refresh from active zone minutes for the last 7 days.
 
 ![Fitbit Widget Screenshot](app/src/main/res/drawable/widget_preview.png)
 

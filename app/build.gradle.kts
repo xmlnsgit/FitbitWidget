@@ -31,7 +31,6 @@ android {
             }
         }
 
-        // Define BuildConfig fields
         buildConfigField("String", "CLIENT_ID", "\"${secretsProperties.getProperty("FITBIT_CLIENT_ID", "")}\"")
         buildConfigField("String", "CLIENT_SECRET", "\"${secretsProperties.getProperty("FITBIT_CLIENT_SECRET", "")}\"")
         buildConfigField("String", "REDIRECT_URI", "\"${secretsProperties.getProperty("FITBIT_REDIRECT_URI", "")}\"")

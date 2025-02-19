@@ -21,6 +21,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.glance.appwidget.GlanceAppWidgetManager
+import androidx.glance.appwidget.updateAll
 import com.visuale.azmwidget.ui.theme.AndroidWidgetWithComposeTheme
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -29,19 +31,22 @@ import okhttp3.FormBody
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.json.JSONObject
+import com.visuale.azmwidget.glance_widget.widget.FitbitWidget
+
 
 class MainActivity : ComponentActivity() {
     private val clientId = BuildConfig.CLIENT_ID
     private val clientSecret = BuildConfig.CLIENT_SECRET
     private val redirectUri = BuildConfig.REDIRECT_URI
 
-    private val authUrl = "https://www.fitbit.com/oauth2/authorize?response_type=code&client_id=$clientId&redirect_uri=$redirectUri&scope=activity&expires_in=604800"
+    private val authUrl =
+        "https://www.fitbit.com/oauth2/authorize?response_type=code&client_id=$clientId&redirect_uri=$redirectUri&scope=activity&expires_in=604800"
     private val tokenUrl = "https://api.fitbit.com/oauth2/token"
-    private val apiUrl = "https://api.fitbit.com/1/user/-/activities/active-zone-minutes/date/today/7d.json"
+    private val apiUrl =
+        "https://api.fitbit.com/1/user/-/activities/active-zone-minutes/date/today/7d.json"
 
     private var accessToken by mutableStateOf<String?>(null)
     private var dataFetchStatus by mutableStateOf("Waiting for data...")
-    private var fitbitJsonData by mutableStateOf<String?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -55,7 +60,6 @@ class MainActivity : ComponentActivity() {
                 ) {
                     Greeting(dataFetchStatus)
                 }
-                fitbitJsonData?.let { SaveJsonToPreferences(it) }
             }
         }
 
@@ -79,66 +83,85 @@ class MainActivity : ComponentActivity() {
         exchangeCodeForToken(code)
     }
 
-    private fun exchangeCodeForToken(authCode: String) = CoroutineScope(Dispatchers.IO).launch {
-        try {
-            val client = OkHttpClient()
-            val encodedCredentials = Base64.encodeToString("$clientId:$clientSecret".toByteArray(), Base64.NO_WRAP)
+    private fun exchangeCodeForToken(authCode: String) {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val client = OkHttpClient()
+                val encodedCredentials =
+                    Base64.encodeToString("$clientId:$clientSecret".toByteArray(), Base64.NO_WRAP)
 
-            val requestBody = FormBody.Builder()
-                .add("client_id", clientId)
-                .add("grant_type", "authorization_code")
-                .add("redirect_uri", redirectUri)
-                .add("code", authCode)
-                .build()
+                val requestBody = FormBody.Builder()
+                    .add("client_id", clientId)
+                    .add("grant_type", "authorization_code")
+                    .add("redirect_uri", redirectUri)
+                    .add("code", authCode)
+                    .build()
 
-            val request = Request.Builder()
-                .url(tokenUrl)
-                .post(requestBody)
-                .addHeader("Authorization", "Basic $encodedCredentials")
-                .addHeader("Content-Type", "application/x-www-form-urlencoded")
-                .build()
+                val request = Request.Builder()
+                    .url(tokenUrl)
+                    .post(requestBody)
+                    .addHeader("Authorization", "Basic $encodedCredentials")
+                    .addHeader("Content-Type", "application/x-www-form-urlencoded")
+                    .build()
 
-            val responseBody = client.newCall(request).execute().body?.string()
+                val responseBody = client.newCall(request).execute().body?.string()
+                val token = JSONObject(responseBody ?: "").optString("access_token")
+                if (token.isNullOrEmpty()) throw Exception("Token missing")
 
-            val token = JSONObject(responseBody ?: "").optString("access_token")
-            if (token.isNullOrEmpty()) throw Exception("Token missing")
+                accessToken = token
+                fetchFitbitData()
 
-            accessToken = token
-            fetchFitbitData()
-
-            getSharedPreferences("FitbitData", Context.MODE_PRIVATE).edit().putString("last7dData", responseBody).apply()
-        } catch (e: Exception) {
-            Log.e("FitbitOAuth", "Error: ${e.message}")
-            runOnUiThread { dataFetchStatus = "Error: ${e.message}" }
-        }
-    }
-
-    private fun fetchFitbitData() = CoroutineScope(Dispatchers.IO).launch {
-        try {
-            val request = Request.Builder()
-                .url(apiUrl)
-                .addHeader("Authorization", "Bearer $accessToken")
-                .build()
-
-            val responseBody = OkHttpClient().newCall(request).execute().body?.string()
-
-            if (responseBody != null) {
-                fitbitJsonData = responseBody
-                runOnUiThread { dataFetchStatus = "Success" }
-            } else {
-                runOnUiThread { dataFetchStatus = "Error fetching data" }
+                saveJsonToPreferences("last7dData", responseBody ?: "")
+            } catch (e: Exception) {
+                Log.e("FitbitOAuth", "Error: ${e.message}")
+                runOnUiThread { dataFetchStatus = "Error: ${e.message}" }
             }
-        } catch (e: Exception) {
-            Log.e("FitbitAPI", "Error: ${e.message}")
-            runOnUiThread { dataFetchStatus = "Error: ${e.message}" }
         }
     }
 
-    @Composable
-    private fun SaveJsonToPreferences(json: String) {
-        val context = this@MainActivity
-        val sharedPreferences: SharedPreferences = context.getSharedPreferences("7dAzmFitbit", Context.MODE_PRIVATE)
-        sharedPreferences.edit().putString("json_response", json).apply()
+    private fun fetchFitbitData() {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val request = Request.Builder()
+                    .url(apiUrl)
+                    .addHeader("Authorization", "Bearer $accessToken")
+                    .build()
+
+                val responseBody = OkHttpClient().newCall(request).execute().body?.string()
+
+                if (!responseBody.isNullOrEmpty()) {
+                    saveJsonToPreferences("json_response", responseBody)
+                    runOnUiThread { dataFetchStatus = "Success" }
+                    // Update widget after new data is saved
+                    FitbitWidget().updateAll(this@MainActivity)
+                } else {
+                    runOnUiThread { dataFetchStatus = "Error fetching data" }
+                }
+            } catch (e: Exception) {
+                Log.e("FitbitAPI", "Error: ${e.message}")
+                runOnUiThread { dataFetchStatus = "Error: ${e.message}" }
+            }
+        }
+    }
+
+    private fun saveJsonToPreferences(key: String, json: String) {
+        val sharedPreferences: SharedPreferences =
+            getSharedPreferences("7dAzmFitbit", Context.MODE_PRIVATE)
+
+        sharedPreferences.edit().remove(key).apply()
+        sharedPreferences.edit().putString(key, json).apply()
+
+        // Update the widget
+        CoroutineScope(Dispatchers.Main).launch {
+            val manager = GlanceAppWidgetManager(this@MainActivity)
+            val glanceIds = manager.getGlanceIds(FitbitWidget::class.java)
+
+            glanceIds.forEach { _ ->
+                FitbitWidget().updateAll(this@MainActivity)
+            }
+
+            FitbitWidget().updateAll(this@MainActivity)
+        }
     }
 }
 

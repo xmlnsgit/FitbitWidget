@@ -25,6 +25,7 @@ import java.time.format.DateTimeFormatter
 data class ActiveZoneMinutes(
     val fatBurn: Int,
     val cardio: Int,
+    val peak: Int,
     val dayOfWeek: String
 )
 
@@ -36,14 +37,14 @@ fun parseJsonResponse(jsonResponse: String): List<ActiveZoneMinutes> {
     return List(activitiesArray.length()) { index ->
         val entry = activitiesArray.getJSONObject(index)
         val valueMap = entry.getJSONObject("value")
-
         val fatBurn = valueMap.optInt("fatBurnActiveZoneMinutes", 0)
         val cardio = valueMap.optInt("cardioActiveZoneMinutes", 0)
+        val peak = valueMap.optInt("peakActiveZoneMinutes", 0)
         val dateStr = entry.getString("dateTime")
         val date = LocalDate.parse(dateStr, formatter)
         val dayOfWeek = date.dayOfWeek.name.first().toString()
 
-        ActiveZoneMinutes(fatBurn, cardio, dayOfWeek)
+        ActiveZoneMinutes(fatBurn, cardio, peak, dayOfWeek)
     }
 }
 
@@ -63,7 +64,7 @@ class FitbitWidget : GlanceAppWidget() {
 //                    """.trimIndent()
 
             val activeZoneMinutesList = parseJsonResponse(jsonResponse)
-            val maxTotalMinutes = activeZoneMinutesList.maxOfOrNull { it.fatBurn + it.cardio } ?: 100
+            val maxTotalMinutes = activeZoneMinutesList.maxOfOrNull { it.fatBurn + it.cardio + it.peak } ?: 100
 
             val scaleFactor = when {
                 maxTotalMinutes < 120 -> 1
@@ -99,18 +100,21 @@ class FitbitWidget : GlanceAppWidget() {
                         ) {
                             Column {
                                 Box(
+                                    modifier = GlanceModifier.height(data.peak.dp/scaleFactor).width(20.dp)
+                                        .background(ColorProvider(Color(0xFF9900cc)))
+                                ) {}
+                                Box(
                                     modifier = GlanceModifier.height(data.cardio.dp/scaleFactor).width(20.dp)
-                                        .background(ColorProvider(Color(0xFFFF5722)))
+                                        .background(ColorProvider(Color(0xFFcc6633)))
                                 ) {}
                                 Box(
                                     modifier = GlanceModifier.height(data.fatBurn.dp/scaleFactor).width(20.dp)
                                         .background(ColorProvider(Color(0xFFfab31b)))
                                 ) {}
-
                             }
                         }
                         Text(
-                            text = "${data.fatBurn + data.cardio}",
+                            text = "${data.fatBurn + data.cardio + data.peak}",
                             style = TextStyle(fontSize = 12.sp, color = ColorProvider(Color.White)),
                             modifier = GlanceModifier.padding(top = 4.dp)
                         )
